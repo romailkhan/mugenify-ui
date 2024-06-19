@@ -9,6 +9,7 @@ To get started with this app, follow the steps below:
 
 ## Todo 
 Front End
+[ ] Handle Spotify Login Through Frontend then call /add_user_to_db endpoint on backend and post data to it so it can be saved in DB
 [ ] Creating Landing Page with "Get Started" Button
 [ ] Main App Screen
    [ ] Chat box with Gemini API (how do we control people will only talk about music?)

@@ -1,6 +1,4 @@
-import HeroLandingPage from './components/Hero';
-
 function App() {
-	return <HeroLandingPage />;
+	return <></>;
 }
 export default App;
