@@ -1,6 +1,8 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import NavBar from '../components/Navbar';
+import { Avatar } from '@chakra-ui/react';
 
 interface SessionData {
 	// Define the shape of your session data here
@@ -41,9 +43,12 @@ export const Route = createLazyFileRoute('/app')({
 			}
 		}, []);
 
+		const avatarURL = sessionData?.images[1]?.url ?? '';
+
 		// Accessing sessionData directly from state
 		return (
 			<div className="flex flex-col items-center justify-center h-screen">
+				<NavBar avatarUrl={avatarURL} />
 				Ayoo this is /app
 				<div>
 					Session Data:{' '}
