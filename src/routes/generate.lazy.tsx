@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Box, Button, Input, VStack, HStack, Text } from '@chakra-ui/react';
-import { createLazyFileRoute } from '@tanstack/react-router';
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Input, VStack, HStack, Text, NumberInput, NumberInputField } from '@chakra-ui/react';
+import { createLazyFileRoute, useNavigate } from '@tanstack/react-router';
 
 interface PlaylistResponse {
   uuid: string;
@@ -11,40 +11,40 @@ interface PlaylistResponse {
 
 export const Route = createLazyFileRoute('/generate')({
   component: () => {
-    const [messages, setMessages] = useState<string[]>([]);
+    const navigate = useNavigate();
+    const [currentPlaylist, setCurrentPlaylist] = useState<PlaylistResponse | null>(null);
     const [inputValue, setInputValue] = useState('');
+    const [songCount, setSongCount] = useState<number>(5);
     const [loading, setLoading] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Check authentication status when component mounts
     useEffect(() => {
       const checkAuth = async () => {
         try {
           const response = await fetch('http://localhost:5000/session', {
             credentials: 'include'
           });
+          if (!response.ok) {
+            navigate({ to: '/' });
+          }
           setIsAuthenticated(response.ok);
         } catch (error) {
           console.error('Auth check failed:', error);
           setIsAuthenticated(false);
+          navigate({ to: '/' });
         }
       };
       
       checkAuth();
-    }, []);
+    }, [navigate]);
 
-    const handleSendMessage = async () => {
+    const handleGeneratePlaylist = async () => {
       if (!isAuthenticated) {
         window.location.href = 'http://localhost:5000/login';
         return;
       }
 
       if (inputValue.trim()) {
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          `You: Theme "${inputValue}"`,
-        ]);
-
         setLoading(true);
 
         try {
@@ -53,8 +53,11 @@ export const Route = createLazyFileRoute('/generate')({
             headers: {
               'Content-Type': 'application/json',
             },
-            credentials: 'include', // Add this to include cookies
-            body: JSON.stringify({ theme: inputValue }),
+            credentials: 'include',
+            body: JSON.stringify({ 
+              theme: inputValue,
+              songCount: songCount
+            }),
           });
 
           if (!geminiResponse.ok) {
@@ -67,40 +70,43 @@ export const Route = createLazyFileRoute('/generate')({
             throw new Error('Invalid response data received from server');
           }
 
-          const storeResponse = await fetch('http://localhost:5000/storeplaylist', {
+          setCurrentPlaylist(playlistData);
+        } catch (error) {
+          console.error('Error:', error);
+          setCurrentPlaylist(null);
+        } finally {
+          setLoading(false);
+          setInputValue('');
+        }
+      }
+    };
+
+    const handleSavePlaylist = async () => {
+      if (currentPlaylist) {
+        try {
+          const response = await fetch('http://localhost:5000/storesongs', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            credentials: 'include', // Add this to include cookies
-            body: JSON.stringify(playlistData),
+            credentials: 'include',
+            body: JSON.stringify(currentPlaylist),
           });
 
-          if (!storeResponse.ok) {
-            console.error('Failed to store playlist');
+          if (!response.ok) {
+            throw new Error('Failed to store playlist');
           }
 
-          const formattedSongs = playlistData.songs
-            .filter(song => song && song.trim().length > 0)
-            .join('\n');
-
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            `AI: Here's a playlist for the theme "${playlistData.theme}":`,
-            formattedSongs,
-          ]);
+          // Clear the current playlist after successful save
+          setCurrentPlaylist(null);
         } catch (error) {
-          console.error('Error:', error);
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            'AI: Sorry, there was an error generating your playlist. Please try again.',
-          ]);
-        } finally {
-          setLoading(false);
+          console.error('Error saving playlist:', error);
         }
-
-        setInputValue('');
       }
+    };
+
+    const handleDiscardPlaylist = () => {
+      setCurrentPlaylist(null);
     };
 
     return (
@@ -108,58 +114,82 @@ export const Route = createLazyFileRoute('/generate')({
         <Text fontSize="3xl" fontWeight="bold" mb={6}>
           Mugenify - Your Personal Music Generator
         </Text>
-        {!isAuthenticated ? (
-          <Box textAlign="center" p={4}>
-            <Text mb={4}>Please log in to generate playlists</Text>
-            <Button 
-              colorScheme="teal" 
-              onClick={() => window.location.href = 'http://localhost:5000/login'}
-            >
-              Log In
-            </Button>
-          </Box>
-        ) : (
+        {isAuthenticated && (
           <VStack spacing={6} align="stretch">
-            <Box
-              className="chatbox"
-              borderWidth={1}
-              borderRadius="lg"
-              p={4}
-              height="400px"
-              overflowY="auto"
-              bg="gray.700"
-            >
-              {messages.length > 0 ? (
-                messages.map((msg, index) => (
-                  <Box key={index} p={3} bg="gray.600" borderRadius="md" mb={4}>
-                    <Text>{msg}</Text>
-                  </Box>
-                ))
-              ) : (
-                <Text textAlign="center">Tell me, what theme do you want for your playlist?</Text>
-              )}
+            {/* Playlist Generation Form */}
+            <Box p={4} borderWidth={1} borderRadius="lg" bg="gray.700">
+              <VStack spacing={4}>
+                <Input
+                  placeholder="Enter a theme for your playlist (e.g., summer vibes, workout, relaxation)"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  aria-label="Theme input"
+                  bg="gray.600"
+                  color="white"
+                  border="none"
+                  _placeholder={{ color: 'gray.400' }}
+                  isDisabled={loading}
+                />
+                
+                {/* Number of songs input */}
+                <HStack width="full">
+                  <Text>Number of songs:</Text>
+                  <NumberInput
+                    defaultValue={5}
+                    min={1}
+                    max={20}
+                    value={songCount}
+                    onChange={(valueString) => setSongCount(Number(valueString))}
+                    bg="gray.600"
+                    borderRadius="md"
+                  >
+                    <NumberInputField />
+                  </NumberInput>
+                </HStack>
+
+                <Button
+                  colorScheme="teal"
+                  onClick={handleGeneratePlaylist}
+                  aria-label="Generate music"
+                  isLoading={loading}
+                  width="full"
+                >
+                  Generate Playlist
+                </Button>
+              </VStack>
             </Box>
-            <HStack>
-              <Input
-                placeholder="Enter a theme for your playlist (e.g., summer vibes, workout, relaxation)"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                aria-label="Theme input"
-                bg="gray.600"
-                color="white"
-                border="none"
-                _placeholder={{ color: 'gray.400' }}
-                isDisabled={loading}
-              />
-              <Button
-                colorScheme="teal"
-                onClick={handleSendMessage}
-                aria-label="Generate music"
-                isLoading={loading}
-              >
-                Generate
-              </Button>
-            </HStack>
+
+            {/* Display Current Playlist */}
+            {currentPlaylist && (
+              <Box p={4} borderWidth={1} borderRadius="lg" bg="gray.700">
+                <Text fontSize="xl" fontWeight="bold" mb={4}>
+                  Playlist for theme: {currentPlaylist.theme}
+                </Text>
+                <VStack align="stretch" spacing={2}>
+                  {currentPlaylist.songs.map((song, index) => (
+                    <Box key={index} p={2} bg="gray.600" borderRadius="md">
+                      <Text>{song}</Text>
+                    </Box>
+                  ))}
+                </VStack>
+                
+                {/* Save/Discard Buttons */}
+                <HStack spacing={4} mt={4} justify="center">
+                  <Button
+                    colorScheme="green"
+                    onClick={handleSavePlaylist}
+                  >
+                    Save Playlist
+                  </Button>
+                  <Button
+                    colorScheme="red"
+                    onClick={handleDiscardPlaylist}
+                  >
+                    Discard
+                  </Button>
+                </HStack>
+              </Box>
+            )}
           </VStack>
         )}
       </Box>
