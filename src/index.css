@@ -1,0 +1,21 @@
+/* Apply this to your chatbox container */
+.chatbox {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #4A5568 #2D3748; /* Firefox */
+}
+  
+  /* Works on Chrome, Edge, Safari */
+.chatbox::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+  
+.chatbox::-webkit-scrollbar-track {
+    background: #2D3748; /* Track color */
+}
+  
+.chatbox::-webkit-scrollbar-thumb {
+    background-color: #4A5568; /* Thumb color */
+    border-radius: 20px; /* Roundness of the scroll thumb */
+    border: 3px solid #2D3748; /* Creates space around thumb */
+  }
+  

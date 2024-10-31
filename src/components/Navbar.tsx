@@ -127,7 +127,7 @@ const MenuLinks: React.FC<MenuLinksProps> = ({ isOpen }) => {
 				direction={['column', 'row', 'row', 'row']}
 				pt={[4, 4, 0, 0]}
 			>
-				<NavItem to="/app">Generate</NavItem>
+				<NavItem to="/generate">Generate</NavItem>
 				<NavItem to="/stats">Stats</NavItem>
 			</Stack>
 		</Box>
